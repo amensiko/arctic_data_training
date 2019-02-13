@@ -312,31 +312,108 @@ $(document).ready(function () {
 </div>
 
 
-<pre class="r"><code>library(dplyr)</code></pre>
-<pre><code>## 
-## Attaching package: 'dplyr'</code></pre>
-<pre><code>## The following objects are masked from 'package:stats':
-## 
-##     filter, lag</code></pre>
-<pre><code>## The following objects are masked from 'package:base':
-## 
-##     intersect, setdiff, setequal, union</code></pre>
-<pre class="r"><code>library(tidyr)</code></pre>
-<div id="reformat-the-catch-data" class="section level1">
-<h1>Reformat the catch data</h1>
+<pre class="r"><code>library(dplyr)
+library(tidyr)
+
+# To call stats filter -- stats::filter()</code></pre>
+<div id="reformat-the-catch-data" class="section level2">
+<h2>Reformat the catch data</h2>
 <ul>
 <li>Remove “all” column</li>
+<li>Remove “notes” column</li>
 <li>Create a “species” column
 <ul>
 <li>Move from wide to long</li>
 </ul></li>
+<li>General QA</li>
 </ul>
+<p><a href="https://knb.ecoinformatics.org/view/df35b.304.2">Mike Byerly. Alaska commercial salmon catches by management region (1886- 1997). Gulf of Alaska Data Portal. df35b.304.2.</a></p>
+<pre class="r"><code>catch_original = read.csv(&quot;https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1&quot;, stringsAsFactors = FALSE)
+
+head(catch_original)</code></pre>
+<pre><code>##   Region Year Chinook Sockeye Coho Pink Chum All notesRegCode
+## 1    SSE 1886       0       5    0    0    0   5             
+## 2    SSE 1887       0     155    0    0    0 155             
+## 3    SSE 1888       0     224   16    0    0 240             
+## 4    SSE 1889       0     182   11   92    0 285             
+## 5    SSE 1890       0     251   42    0    0 292             
+## 6    SSE 1891       0     274   24    0    0 298</code></pre>
+<div id="remove-the-all-and-notesregcode-columns-using-select" class="section level3">
+<h3>Remove the “all” and “notesRegCode” columns using “select”</h3>
+<pre class="r"><code>#Cmd + shift + m: pipe operator shortcut ( %&gt;% )
+
+# catch_long = catch_original %&gt;% select(-All, -notesRegCode) %&gt;% ... --&gt; this will be the same
+
+catch_long = catch_original %&gt;% select(Region, Year, Chinook, Sockeye, Coho, Pink, Chum) %&gt;% 
+                                gather(key = &quot;species&quot;, value = &quot;catch&quot;, -Region, -Year)
+
+head(catch_long)</code></pre>
+<pre><code>##   Region Year species catch
+## 1    SSE 1886 Chinook     0
+## 2    SSE 1887 Chinook     0
+## 3    SSE 1888 Chinook     0
+## 4    SSE 1889 Chinook     0
+## 5    SSE 1890 Chinook     0
+## 6    SSE 1891 Chinook     0</code></pre>
+<pre class="r"><code>catch_wide = catch_long %&gt;% spread(key = species, value = catch)
+
+head(catch_wide)</code></pre>
+<pre><code>##   Region Year Chinook Chum Coho Pink Sockeye
+## 1    ALU 1911       0    0    0    0       9
+## 2    ALU 1912       0    0    0    0       0
+## 3    ALU 1913       0    0    0    0       0
+## 4    ALU 1914       0    0    0    0       0
+## 5    ALU 1915       0    0    0    0       0
+## 6    ALU 1916       0    0    1  180      76</code></pre>
 </div>
-<div id="join-the-region-definitions" class="section level1">
-<h1>Join the region definitions</h1>
+<div id="clean-up-our-data" class="section level3">
+<h3>Clean up our data</h3>
+<ul>
+<li>Rename catch to catch_thousands</li>
+<li>Change “catch” column to numeric</li>
+<li>Create a new “catch” column in units num. of fish</li>
+</ul>
+<pre class="r"><code>catch_clean = catch_long %&gt;% rename(catch_thousands = catch) %&gt;%
+                             mutate(catch_thousands = ifelse(catch_thousands == &quot;I&quot;, 1, catch_thousands)) %&gt;% 
+                             mutate(catch_thousands = as.numeric(catch_thousands)) %&gt;% 
+                             mutate(catch = catch_thousands * 1000) %&gt;% 
+                             select(-catch_thousands)
+
+head(catch_clean)</code></pre>
+<pre><code>##   Region Year species catch
+## 1    SSE 1886 Chinook     0
+## 2    SSE 1887 Chinook     0
+## 3    SSE 1888 Chinook     0
+## 4    SSE 1889 Chinook     0
+## 5    SSE 1890 Chinook     0
+## 6    SSE 1891 Chinook     0</code></pre>
 </div>
-<div id="miscellaneous-functions" class="section level1">
-<h1>Miscellaneous functions</h1>
+<div id="split---apply---combine" class="section level3">
+<h3>Split - Apply - Combine</h3>
+<ul>
+<li>Calculate mean catch by species</li>
+</ul>
+<pre class="r"><code>species_mean = catch_clean %&gt;% group_by(species, Region) %&gt;% summarise(catch_mean = mean(catch), num_obs = n())
+
+head(species_mean)</code></pre>
+<pre><code>## # A tibble: 6 x 4
+## # Groups:   species [1]
+##   species Region catch_mean num_obs
+##   &lt;chr&gt;   &lt;chr&gt;       &lt;dbl&gt;   &lt;int&gt;
+## 1 Chinook ALU          23.0      87
+## 2 Chinook BER          19.6     102
+## 3 Chinook BRB       76211.      114
+## 4 Chinook CHG        1536.      110
+## 5 Chinook CKI       43876.      105
+## 6 Chinook COP       19798.       94</code></pre>
+</div>
+</div>
+<div id="join-the-region-definitions" class="section level2">
+<h2>Join the region definitions</h2>
+<pre class="r"><code>regions_original = read.csv(&quot;https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.303.1&quot;)</code></pre>
+</div>
+<div id="miscellaneous-functions" class="section level2">
+<h2>Miscellaneous functions</h2>
 </div>
 
 

@@ -1,6 +1,6 @@
 ---
 title: "Data Cleaning and Manipulation"
-output: html_document
+output: pdf_document
 author: Anastasija Mensikova
 ---
 
@@ -15,6 +15,7 @@ library(tidyr)
 # To call stats filter -- stats::filter()
 ```
 
+
 ## Reformat the catch data
 
 * Remove "all" column
@@ -23,15 +24,18 @@ library(tidyr)
     - Move from wide to long
 * General QA
 
+
 [Mike Byerly. Alaska commercial salmon catches by management region (1886- 1997). Gulf of Alaska Data Portal. df35b.304.2.](https://knb.ecoinformatics.org/view/df35b.304.2)
 
 ```{r}
 catch_original = read.csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1", stringsAsFactors = FALSE)
-regions_original = read.csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.303.1")
+
 head(catch_original)
 ```
 
+
 ### Remove the "all" and "notesRegCode" columns using "select"
+
 ```{r}
 #Cmd + shift + m: pipe operator shortcut ( %>% )
 
@@ -50,8 +54,59 @@ head(catch_wide)
 ```
 
 
+### Clean up our data
+
+* Rename catch to catch_thousands
+* Change "catch" column to numeric
+* Create a new "catch" column in units num. of fish
+
+
+```{r}
+catch_clean = catch_long %>% rename(catch_thousands = catch) %>%
+                             mutate(catch_thousands = ifelse(catch_thousands == "I", 1, catch_thousands)) %>% 
+                             mutate(catch_thousands = as.numeric(catch_thousands)) %>% 
+                             mutate(catch = catch_thousands * 1000) %>% 
+                             select(-catch_thousands)
+
+head(catch_clean)
+```
+
+
+```{r, eval = F, echo = F}
+# Look for where as.numeric failed (NAs introduced by coercion)
+test = as.numeric(catch_long$catch)
+i = which(is.na(test) == TRUE)
+catch_long[i,]
+```
+
+
+### Split - Apply - Combine
+
+* Calculate mean catch by species
+
+
+```{r}
+species_mean = catch_clean %>% group_by(species, Region) %>% summarise(catch_mean = mean(catch), num_obs = n())
+
+head(species_mean)
+```
+
+
+```{r}
+year_mean = catch_clean %>% group_by(Year) %>% summarise(catch_mean = mean(catch)) %>% arrange(-catch_mean) %>% 
+            filter(Year >= 1990)
+
+year_mean
+```
+
+
 
 ## Join the region definitions
+
+```{r}
+regions_original = read.csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.303.1")
+```
+
 
 ## Miscellaneous functions
 
