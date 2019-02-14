@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r, include=F, echo=F}
 library(leaflet)
 library(dplyr)
 library(tidyr)
@@ -16,8 +16,12 @@ library(DT)
 library(scales)
 ```
 
+<br/>
+<br/>
 
 ## Reformat the data for plotting
+
+<br/>
 
 Alaska Department of Fish and Game, Division of Commercial Fisheries. 2017. Daily salmon escapement counts from the OceanAK database, Alaska, 1921-2017. Knowledge Network for Biocomplexity. doi:10.5063/F1S46Q6M.
 
@@ -27,10 +31,12 @@ esc = read.csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/urn%3Auuid%3A
 head(esc)
 ```
 
+<br/>
 
 * Calculate annual escapement by species and region
 * Filter for just pacific salmon (Sockeye, Chinook, Coho, Pink, Chum)
 
+<br/>
 
 ```{r}
 annual_esc = esc %>% separate(sampleDate, c("year", "month", "day"), "-", remove = F) %>% 
@@ -42,6 +48,7 @@ annual_esc = esc %>% separate(sampleDate, c("year", "month", "day"), "-", remove
 head(annual_esc)
 ```
 
+<br/>
 
 ```{r}
 annual_esc = annual_esc %>% filter(Species %in% c("Sockeye", "Chinook", "Coho", "Pink", "Chum"))
@@ -49,15 +56,19 @@ annual_esc = annual_esc %>% filter(Species %in% c("Sockeye", "Chinook", "Coho", 
 head(annual_esc)
 ```
 
+<br/>
+<br/>
 
 ## Generate some static plots
+
+<br/>
 
 ```{r}
 ggplot(annual_esc, aes(x = Species, y = count, fill = SASAP.Region)) + 
   geom_col()
 ```
 
-
+<br/>
 
 ```{r}
 my_theme = theme_test() +
@@ -75,8 +86,9 @@ p1 = ggplot(filter(annual_esc, SASAP.Region == "Kodiak"), aes(x = year, y = coun
 p1
 ```
 
+<br/>
 
-```{r, fig.width=10, fig.height=4}
+```{r, fig.width=10, fig.height=5}
 p2 = ggplot(annual_esc, aes(x = year, y = count, color = Species)) +
   geom_line() +
   geom_point() +
@@ -89,13 +101,44 @@ p2
 ggsave("figures/regional_escapement.png", plot = p2, width = 7, height = 4, units = "in")
 ```
 
-
+<br/>
+<br/>
 
 ## Generate an interactive map
 
-```{r}
+<br/>
 
+Map the sampling locations for escapement
+
+* Find distinct lat/lon/location combinations
+
+<br/>
+
+```{r}
+locations = esc %>% 
+  distinct(Location, Latitude, Longitude) %>% 
+  drop_na()
+
+head(locations)
 ```
+
+<br/>
+
+```{r, echo=F}
+datatable(locations)
+```
+
+
+<br/>
+
+
+```{r}
+leaflet(locations) %>% 
+  addTiles() %>% 
+  addMarkers(lng = ~Longitude, lat = ~Latitude, popup = ~Location)
+```
+
+
 
 
 
