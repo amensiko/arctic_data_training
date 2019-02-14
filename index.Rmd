@@ -13,6 +13,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(DT)
+library(scales)
 ```
 
 
@@ -60,15 +61,32 @@ ggplot(annual_esc, aes(x = Species, y = count, fill = SASAP.Region)) +
 
 ```{r}
 my_theme = theme_test() +
-  theme(legend.position = "bottom", legend.title = element_blank())
+  theme(legend.position = "bottom", legend.title = element_blank(), plot.title = element_text(hjust = 0.5))
 
-ggplot(filter(annual_esc, SASAP.Region == "Kodiak"), aes(x = year, y = count, color = Species)) +
+p1 = ggplot(filter(annual_esc, SASAP.Region == "Kodiak"), aes(x = year, y = count, color = Species)) +
   geom_line() +
   geom_point() +
+  scale_y_continuous(labels = comma) +
   ylab("Escapement (# of fish)") +
   xlab("Year") +
   ggtitle("Kodiak Salmon Escapement") +
   my_theme
+
+p1
+```
+
+
+```{r, fig.width=10, fig.height=4}
+p2 = ggplot(annual_esc, aes(x = year, y = count, color = Species)) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(labels = comma) +
+  facet_wrap(~SASAP.Region, scales = "free_y", ncol = 3) +
+  my_theme
+
+p2
+
+ggsave("figures/regional_escapement.png", plot = p2, width = 7, height = 4, units = "in")
 ```
 
 
