@@ -1,0 +1,129 @@
+---
+title: "Spatial Vector Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, escho=F, include=F}
+library(sf)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(leaflet)
+```
+
+## Read in shapefile data
+
+<br/>
+
+```{r}
+## Read in shapefile using sf
+ak_shp_sf = read_sf("./data/shapefiles/ak_regions_simp.shp")
+
+head(ak_shp_sf) 
+```
+
+<br/>
+
+```{r}
+plot(ak_shp_sf)
+```
+
+<br/>
+
+```{r}
+st_crs(ak_shp_sf)
+```
+
+<br/>
+
+```{r}
+ak_shp_sf = ak_shp_sf %>% 
+  st_transform(crs = 3338)
+
+st_crs(ak_shp_sf)
+```
+
+<br/>
+
+```{r}
+plot(ak_shp_sf)
+```
+
+<br/>
+<br/>
+
+## Spatial Joins
+
+<br/>
+
+```{r}
+pop = read.csv("./data/shapefiles/alaska_population.csv")
+```
+
+<br/>
+
+```{r}
+pop_sf = st_as_sf(pop,
+                  coords = c("lng", "lat"),
+                  crs = 4326,
+                  remove = F) %>% 
+  st_transform(crs = 3338)
+```
+
+<br/>
+
+```{r}
+pop_joined_sf = st_join(pop_sf, ak_shp_sf, join = st_within)
+
+plot(pop_joined_sf["region"])
+```
+
+<br/>
+<br/>
+
+## Group by and summarise
+
+<br/>
+
+```{r}
+pop_region = pop_joined_sf %>% 
+  as.data.frame() %>% 
+  group_by(region) %>% 
+  summarize(total_pop = sum(population))
+
+head(pop_region)
+```
+
+<br/>
+
+```{r, echo=F}
+ak_pop_sf = left_join(ak_shp_sf, pop_region)
+
+plot(ak_pop_sf["total_pop"])
+```
+
+<br/>
+
+```{r}
+ak_mgmt = ak_pop_sf %>% 
+  group_by(mgmt_area) %>% 
+  summarise(total_pop = sum(total_pop))
+
+plot(ak_mgmt["total_pop"])
+```
+
+<br/>
+<br/>
+
+## Saving as shapefile
+
+<br/>
+
+```{r}
+write_sf(ak_shp_sf, "./data/shapefiles/ak_regions_population.shp")
+```
+
